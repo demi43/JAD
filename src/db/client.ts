@@ -19,6 +19,12 @@ export function createDb(path: string): Database.Database {
       dedupe_key TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_postings_dedupe_key ON postings(dedupe_key);
+    CREATE TABLE IF NOT EXISTS resume (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      filename TEXT NOT NULL,
+      extracted_text TEXT NOT NULL,
+      uploaded_at TEXT NOT NULL
+    );
   `);
   addColumnIfMissing(db, "postings", "rank_score", "INTEGER");
   addColumnIfMissing(db, "postings", "rank_reason", "TEXT");
