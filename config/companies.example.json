@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Example Co",
+    "ats": "greenhouse",
+    "identifier": "exampleco"
+  },
+  {
+    "name": "Another Co",
+    "ats": "lever",
+    "identifier": "anotherco"
+  }
+]

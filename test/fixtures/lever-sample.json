@@ -1,0 +1,10 @@
+[
+  {
+    "id": "abcd-1234",
+    "text": "Product Manager",
+    "categories": { "location": "New York" },
+    "description": "<p>We are hiring a Product Manager.</p>",
+    "hostedUrl": "https://jobs.lever.co/anotherco/abcd-1234",
+    "createdAt": 1722470400000
+  }
+]
