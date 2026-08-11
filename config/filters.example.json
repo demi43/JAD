@@ -1,0 +1,4 @@
+{
+  "includeKeywords": ["engineer", "developer"],
+  "excludeKeywords": ["staff", "principal", "intern"]
+}
