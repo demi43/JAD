@@ -159,8 +159,12 @@ TypeScript across the whole project:
 - **Frontend**: React + TypeScript (review queue UI).
 - **Browser extension**: TypeScript, Manifest V3 (required — Chrome
   extensions must be JS/TS regardless of backend choice).
-- **AI**: Anthropic API (Claude) via the TypeScript SDK, for relevance
-  ranking and draft generation.
+- **AI**: LiteLLM (self-hosted proxy, OpenAI-compatible interface),
+  called from the backend via the `openai` TypeScript SDK pointed at the
+  proxy's base URL. LiteLLM lists provider API keys (Anthropic, OpenAI,
+  etc.) under model aliases in its own config, so the app can be pointed
+  at different providers/models for testing without app code changes.
+  See the Phase 2 addendum below for the resulting client shape.
 
 Rationale: this is a solo-maintained personal tool where the same person
 debugs the scraper, API, UI, and extension in one sitting. One language
@@ -188,6 +192,47 @@ in sync by hand.
 - TypeScript end-to-end (backend, frontend, extension) for one shared
   type system across the whole project, given a solo maintainer.
 
+## Phase 2 addendum — Resume + Filtering + Ranking
+
+Added 2026-08-11, after Phase 1 (Discovery) shipped. Phase 1 deliberately
+left out the Profile/Resume Manager (see the Phase 1 plan's scope note);
+this addendum specifies it now that ranking is the thing that consumes it.
+
+**Resume storage**: single-user tool, so there is exactly one active
+resume at a time — a new upload replaces the previous one, no versioning.
+Uploaded as PDF or DOCX via `POST /resume` (multipart), text is extracted
+deterministically (`pdf-parse` for PDF, `mammoth` for DOCX — no AI call
+at upload time) and stored alongside the original file bytes in SQLite.
+Full structuring into work history/skills/education is explicitly
+deferred to Phase 3, since nothing before drafting consumes structured
+fields — ranking only needs resume text to compare against a job
+description.
+
+**Rule filters**: title-only include/exclude keyword matching for this
+phase, configured in `config/filters.json` (same load/validate pattern as
+`config/companies.json`). Location and seniority filtering are explicitly
+out of scope for now.
+
+**AI ranking**: for postings that pass the title filter and don't yet
+have a score, call the AI client with resume text + job description;
+response is `{ score: 0-100, reason: string }`. Both are stored per
+posting so the queue view can sort by score and show the reason inline
+for a sanity check on the AI's judgment.
+
+**AI client**: a single `src/ai/client.ts` wraps a self-hosted LiteLLM
+proxy via the OpenAI-compatible `openai` npm SDK
+(`LITELLM_BASE_URL` / `LITELLM_API_KEY` / `LITELLM_MODEL` env vars).
+Requires `pip install 'litellm[proxy]'` and a `config.yaml` listing
+provider keys under model aliases, run separately from this app. Every
+AI-consuming module (ranking now, drafting in Phase 3) goes through this
+one client, so swapping models/providers for testing is a proxy-config
+change, not an app-code change.
+
+**Queue view**: extends the Phase 1 postings view with a ranked/filtered
+listing, sorted by score, showing each posting's reason — same
+plain-HTML-no-framework approach as Phase 1 (a real frontend is still
+Phase 3's concern, once review/edit interactions actually need one).
+
 ## Open items for later phases (explicitly out of scope for v1)
 
 - Cover letter generation (mentioned as a possible extra during design;
@@ -196,3 +241,7 @@ in sync by hand.
 - Which specific job board APIs to integrate first (to be chosen when
   the source config is built out, based on the user's actual target
   companies/industries).
+- Location and seniority rule filters (Phase 2 ships title-only
+  filtering; add these if title keywords alone prove too coarse).
+- Structured resume fields (work history/skills/education) — deferred to
+  Phase 3, when the Draft Generator first needs them.
