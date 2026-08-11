@@ -20,5 +20,19 @@ export function createDb(path: string): Database.Database {
     );
     CREATE INDEX IF NOT EXISTS idx_postings_dedupe_key ON postings(dedupe_key);
   `);
+  addColumnIfMissing(db, "postings", "rank_score", "INTEGER");
+  addColumnIfMissing(db, "postings", "rank_reason", "TEXT");
   return db;
+}
+
+function addColumnIfMissing(
+  db: Database.Database,
+  table: string,
+  column: string,
+  definition: string
+): void {
+  const existing = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!existing.some((col) => col.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
 }

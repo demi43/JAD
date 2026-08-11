@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import type { Posting } from "../types.js";
+import type { Posting, RankedPosting } from "../types.js";
 import { dedupeKey } from "../dedupe.js";
 
 interface PostingRow {
@@ -12,6 +12,8 @@ interface PostingRow {
   description_html: string;
   posted_at: string | null;
   discovered_at: string;
+  rank_score: number | null;
+  rank_reason: string | null;
 }
 
 export function insertPosting(db: Database.Database, posting: Posting): void {
@@ -45,6 +47,37 @@ export function getAllDedupeKeys(db: Database.Database): Set<string> {
     key: string;
   }[];
   return new Set(rows.map((row) => row.key));
+}
+
+export function getUnrankedPostings(db: Database.Database): Posting[] {
+  const rows = db
+    .prepare(`SELECT * FROM postings WHERE rank_score IS NULL ORDER BY discovered_at DESC`)
+    .all() as PostingRow[];
+  return rows.map(rowToPosting);
+}
+
+export function saveRank(
+  db: Database.Database,
+  postingId: string,
+  score: number,
+  reason: string
+): void {
+  db.prepare(`UPDATE postings SET rank_score = ?, rank_reason = ? WHERE id = ?`).run(
+    score,
+    reason,
+    postingId
+  );
+}
+
+export function getRankedPostings(db: Database.Database): RankedPosting[] {
+  const rows = db
+    .prepare(`SELECT * FROM postings WHERE rank_score IS NOT NULL ORDER BY rank_score DESC`)
+    .all() as PostingRow[];
+  return rows.map((row) => ({
+    ...rowToPosting(row),
+    rankScore: row.rank_score as number,
+    rankReason: row.rank_reason as string,
+  }));
 }
 
 function rowToPosting(row: PostingRow): Posting {

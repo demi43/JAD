@@ -21,3 +21,8 @@ export interface Posting {
   /** ISO date string of when we scraped it. */
   discoveredAt: string;
 }
+
+export interface RankedPosting extends Posting {
+  rankScore: number;
+  rankReason: string;
+}
