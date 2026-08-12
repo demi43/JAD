@@ -69,6 +69,10 @@ export function saveRank(
   );
 }
 
+export function clearAllRanks(db: Database.Database): void {
+  db.prepare(`UPDATE postings SET rank_score = NULL, rank_reason = NULL`).run();
+}
+
 export function getRankedPostings(db: Database.Database): RankedPosting[] {
   const rows = db
     .prepare(`SELECT * FROM postings WHERE rank_score IS NOT NULL ORDER BY rank_score DESC`)

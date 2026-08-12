@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 import type Database from "better-sqlite3";
 import { createDb } from "../src/db/client.js";
+import { insertPosting, saveRank, getUnrankedPostings } from "../src/db/postings.js";
+import type { Posting } from "../src/types.js";
 
 vi.mock("../src/resume/extractText.js", () => ({
   extractResumeText: vi.fn(),
@@ -9,6 +11,18 @@ vi.mock("../src/resume/extractText.js", () => ({
 
 const { extractResumeText } = await import("../src/resume/extractText.js");
 const { createServer } = await import("../src/server.js");
+
+const posting: Posting = {
+  id: "greenhouse:1",
+  company: "Example Co",
+  ats: "greenhouse",
+  title: "Software Engineer",
+  location: "Remote",
+  url: "https://example.com/1",
+  descriptionHtml: "<p>desc</p>",
+  postedAt: null,
+  discoveredAt: "2026-08-11T00:00:00.000Z",
+};
 
 let db: Database.Database;
 
@@ -68,5 +82,39 @@ describe("POST /resume", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Unsupported resume file type/);
+  });
+
+  it("returns 400 with clean JSON (not HTML) when the file exceeds the size limit", async () => {
+    const app = createServer(db);
+
+    const res = await request(app)
+      .post("/resume")
+      .attach("resume", Buffer.alloc(11 * 1024 * 1024), {
+        filename: "huge-resume.pdf",
+        contentType: "application/pdf",
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.type).toMatch(/json/);
+    expect(typeof res.body.error).toBe("string");
+  });
+
+  it("clears existing rankings on every posting when a new resume is uploaded", async () => {
+    insertPosting(db, posting);
+    saveRank(db, posting.id, 90, "Great match.");
+    expect(getUnrankedPostings(db)).toEqual([]);
+
+    vi.mocked(extractResumeText).mockResolvedValue("Experienced engineer.");
+    const app = createServer(db);
+
+    const res = await request(app)
+      .post("/resume")
+      .attach("resume", Buffer.from("fake pdf bytes"), {
+        filename: "resume.pdf",
+        contentType: "application/pdf",
+      });
+
+    expect(res.status).toBe(200);
+    expect(getUnrankedPostings(db).map((p) => p.id)).toEqual([posting.id]);
   });
 });

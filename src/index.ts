@@ -61,11 +61,17 @@ async function main(): Promise<void> {
     );
   });
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`applicationVT listening on http://localhost:${PORT}`);
     console.log(`View discovered postings at http://localhost:${PORT}/postings`);
     console.log(`View ranked queue at http://localhost:${PORT}/queue`);
   });
+  // Personal, localhost-only server: ranking is strictly sequential (one AI
+  // round-trip per posting), so a large batch can exceed Node's default
+  // 5-minute request timeout. Disable it rather than have the connection
+  // drop mid-run.
+  server.requestTimeout = 0;
+  server.headersTimeout = 0;
 
   cron.schedule(SCRAPE_CRON, () => {
     console.log("Running scheduled scrape...");

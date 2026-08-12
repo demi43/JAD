@@ -37,7 +37,13 @@ describe("rankAll", () => {
 
     const result = await rankAll(db, client, "resume text", filters);
 
-    expect(result).toEqual({ considered: 1, filteredOut: 0, ranked: 1, errors: 0 });
+    expect(result).toEqual({
+      considered: 1,
+      filteredOut: 0,
+      ranked: 1,
+      errors: 0,
+      errorSamples: [],
+    });
     expect(getRankedPostings(db)).toMatchObject([{ id: "greenhouse:1", rankScore: 88 }]);
   });
 
@@ -47,7 +53,13 @@ describe("rankAll", () => {
 
     const result = await rankAll(db, client, "resume text", filters);
 
-    expect(result).toEqual({ considered: 1, filteredOut: 1, ranked: 0, errors: 0 });
+    expect(result).toEqual({
+      considered: 1,
+      filteredOut: 1,
+      ranked: 0,
+      errors: 0,
+      errorSamples: [],
+    });
     expect(client.complete).not.toHaveBeenCalled();
   });
 
@@ -63,6 +75,31 @@ describe("rankAll", () => {
 
     const result = await rankAll(db, client, "resume text", filters);
 
-    expect(result).toEqual({ considered: 2, filteredOut: 0, ranked: 1, errors: 1 });
+    expect(result).toEqual({
+      considered: 2,
+      filteredOut: 0,
+      ranked: 1,
+      errors: 1,
+      errorSamples: ["boom"],
+    });
+  });
+
+  it("caps errorSamples at the first 3 error messages", async () => {
+    for (const id of ["a", "b", "c", "d"]) {
+      insertPosting(db, makePosting({ id }));
+    }
+    const client: AiClient = {
+      complete: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("err1"))
+        .mockRejectedValueOnce(new Error("err2"))
+        .mockRejectedValueOnce(new Error("err3"))
+        .mockRejectedValueOnce(new Error("err4")),
+    };
+
+    const result = await rankAll(db, client, "resume text", filters);
+
+    expect(result.errors).toBe(4);
+    expect(result.errorSamples).toEqual(["err1", "err2", "err3"]);
   });
 });

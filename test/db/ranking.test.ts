@@ -10,6 +10,7 @@ import {
   getUnrankedPostings,
   saveRank,
   getRankedPostings,
+  clearAllRanks,
 } from "../../src/db/postings.js";
 import type { Posting } from "../../src/types.js";
 
@@ -55,6 +56,17 @@ describe("ranking storage", () => {
     const ranked = getRankedPostings(db);
     expect(ranked.map((p) => p.id)).toEqual(["b", "a"]);
     expect(ranked[0]).toMatchObject({ rankScore: 90, rankReason: "Strong match." });
+  });
+
+  it("clearAllRanks resets every posting's score and reason", () => {
+    insertPosting(db, makePosting());
+    saveRank(db, "greenhouse:1", 87, "Strong skills match.");
+    expect(getRankedPostings(db)).toHaveLength(1);
+
+    clearAllRanks(db);
+
+    expect(getUnrankedPostings(db)).toEqual([makePosting()]);
+    expect(getRankedPostings(db)).toEqual([]);
   });
 });
 

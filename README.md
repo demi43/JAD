@@ -52,6 +52,8 @@ in order of relevance.
 - Check resume status: `curl http://localhost:3000/resume`
 - Rank discovered postings against your resume:
   `curl -X POST http://localhost:3000/rank`
+  (ranking is sequential — one AI call per posting — so a large batch of
+  postings can take a while; that's expected, not a hang)
 - View the ranked queue, sorted by relevance: http://localhost:3000/queue
 
 A scrape also runs automatically every day at 06:00 (server time). Override

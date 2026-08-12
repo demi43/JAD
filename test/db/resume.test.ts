@@ -14,17 +14,24 @@ describe("resume storage", () => {
     expect(getResume(db)).toBeNull();
   });
 
-  it("round-trips a saved resume", () => {
+  it("round-trips a saved resume, including file bytes and mime type", () => {
+    const fileBytes = Buffer.from("fake pdf bytes");
     saveResume(db, {
       filename: "resume.pdf",
       extractedText: "Experienced engineer.",
       uploadedAt: "2026-08-11T00:00:00.000Z",
+      mimeType: "application/pdf",
+      fileBytes,
     });
-    expect(getResume(db)).toEqual({
+    const resume = getResume(db);
+    expect(resume).toEqual({
       filename: "resume.pdf",
       extractedText: "Experienced engineer.",
       uploadedAt: "2026-08-11T00:00:00.000Z",
+      mimeType: "application/pdf",
+      fileBytes,
     });
+    expect(Buffer.isBuffer(resume?.fileBytes)).toBe(true);
   });
 
   it("replaces the previous resume on a second save", () => {
@@ -32,14 +39,19 @@ describe("resume storage", () => {
       filename: "old.pdf",
       extractedText: "Old.",
       uploadedAt: "2026-08-01T00:00:00.000Z",
+      mimeType: "application/pdf",
+      fileBytes: Buffer.from("old bytes"),
     });
     saveResume(db, {
       filename: "new.pdf",
       extractedText: "New.",
       uploadedAt: "2026-08-11T00:00:00.000Z",
+      mimeType: "application/pdf",
+      fileBytes: Buffer.from("new bytes"),
     });
     const resume = getResume(db);
     expect(resume?.filename).toBe("new.pdf");
     expect(resume?.extractedText).toBe("New.");
+    expect(resume?.fileBytes.toString()).toBe("new bytes");
   });
 });

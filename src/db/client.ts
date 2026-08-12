@@ -28,6 +28,8 @@ export function createDb(path: string): Database.Database {
   `);
   addColumnIfMissing(db, "postings", "rank_score", "INTEGER");
   addColumnIfMissing(db, "postings", "rank_reason", "TEXT");
+  addColumnIfMissing(db, "resume", "file_bytes", "BLOB");
+  addColumnIfMissing(db, "resume", "mime_type", "TEXT");
   return db;
 }
 
