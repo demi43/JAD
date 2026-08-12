@@ -2,7 +2,7 @@ import express from "express";
 import type { Express } from "express";
 import multer from "multer";
 import type Database from "better-sqlite3";
-import { getAllPostings } from "./db/postings.js";
+import { getAllPostings, getRankedPostings } from "./db/postings.js";
 import { extractResumeText } from "./resume/extractText.js";
 import { saveResume, getResume } from "./db/resume.js";
 
@@ -35,6 +35,33 @@ export function createServer(db: Database.Database): Express {
     <h1>Discovered Postings</h1>
     <table border="1" cellpadding="6">
       <thead><tr><th>Company</th><th>Title</th><th>Location</th><th>Discovered</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </body>
+</html>`);
+  });
+
+  app.get("/queue", (_req, res) => {
+    const ranked = getRankedPostings(db);
+    const rows = ranked
+      .map(
+        (p) => `<tr>
+          <td>${p.rankScore}</td>
+          <td>${escapeHtml(p.company)}</td>
+          <td><a href="${escapeHtml(p.url)}">${escapeHtml(p.title)}</a></td>
+          <td>${escapeHtml(p.location)}</td>
+          <td>${escapeHtml(p.rankReason)}</td>
+        </tr>`
+      )
+      .join("\n");
+
+    res.type("html").send(`<!doctype html>
+<html>
+  <head><title>Ranked Queue</title></head>
+  <body>
+    <h1>Ranked Queue</h1>
+    <table border="1" cellpadding="6">
+      <thead><tr><th>Score</th><th>Company</th><th>Title</th><th>Location</th><th>Reason</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </body>
