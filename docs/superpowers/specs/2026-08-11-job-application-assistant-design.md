@@ -220,18 +220,61 @@ posting so the queue view can sort by score and show the reason inline
 for a sanity check on the AI's judgment.
 
 **AI client**: a single `src/ai/client.ts` wraps a self-hosted LiteLLM
-proxy via the OpenAI-compatible `openai` npm SDK
-(`LITELLM_BASE_URL` / `LITELLM_API_KEY` / `LITELLM_MODEL` env vars).
-Requires `pip install 'litellm[proxy]'` and a `config.yaml` listing
-provider keys under model aliases, run separately from this app. Every
-AI-consuming module (ranking now, drafting in Phase 3) goes through this
-one client, so swapping models/providers for testing is a proxy-config
-change, not an app-code change.
+proxy via the OpenAI-compatible `openai` npm SDK (`LITELLM_MODEL` env var
+selects the model/provider per call, e.g. `anthropic/claude-sonnet-5`).
+Every AI-consuming module (ranking now, drafting in Phase 3) goes through
+this one client, so swapping models/providers for testing is an env-var
+change, not an app-code change. See the Phase 2b addendum below for how
+the proxy itself is configured and run — this was revised after the
+initial Phase 2 implementation to be auto-managed by the app rather than
+requiring manual setup.
 
 **Queue view**: extends the Phase 1 postings view with a ranked/filtered
 listing, sorted by score, showing each posting's reason — same
 plain-HTML-no-framework approach as Phase 1 (a real frontend is still
 Phase 3's concern, once review/edit interactions actually need one).
+
+## Phase 2b addendum — Auto-managed LiteLLM proxy
+
+Added 2026-08-11, revising part of the Phase 2 addendum above after initial
+implementation. The original design required the user to hand-write a
+LiteLLM `config.yaml` and run the proxy as a separate manual process. The
+user's actual intent was simpler: set `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`
+/ `GEMINI_API_KEY` (any subset) as env vars and have it just work, so they
+can test ranking against any of the three providers without hand-editing
+YAML or remembering to start a separate process.
+
+**Env vars**: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` — any
+subset may be set; each present key makes that provider available.
+`LITELLM_MODEL` remains required and explicit (e.g.
+`anthropic/claude-sonnet-5`, `openai/gpt-4o-mini`,
+`gemini/gemini-2.5-flash`) — the provider prefix picks which key backs a
+given call. This was a deliberate choice over auto-selecting a model:
+unambiguous, and switching providers to test is a one-line env change.
+`LITELLM_BASE_URL` / `LITELLM_API_KEY` are no longer required from the
+user — the app manages its own local proxy and fills in internal defaults.
+
+**Config generation**: on startup, the app builds a LiteLLM proxy config
+in memory — one wildcard model entry (`openai/*`, `anthropic/*`,
+`gemini/*`) per provider key that's actually set, each reading that key
+from the proxy process's own environment — and writes it to a gitignored
+temp file. Wildcard routing means no specific model names need to be
+enumerated or kept up to date; any `<provider>/<model>` string works as
+long as that provider's key is set.
+
+**Auto-start / lifecycle**: `npm run dev` and `npm start` spawn
+`litellm --config <generated file> --port <port>` as a child process,
+poll its `/health` endpoint until ready (with a timeout), and terminate
+it on the app's shutdown signals (SIGINT/SIGTERM). If no provider keys
+are set at all, the proxy isn't started and `/rank` continues to return
+its existing "not configured" error — scraping, resume upload, and the
+queue view are unaffected either way, since only ranking depends on AI.
+
+**Remaining manual step**: `pip install "litellm[proxy]"` once, since
+LiteLLM itself is a Python tool with no official Node runtime — this
+can't be fully eliminated, only reduced to a one-time install. If it's
+missing or the child process fails to start, the app logs a clear error
+naming the install command and keeps running everything else.
 
 ## Open items for later phases (explicitly out of scope for v1)
 
