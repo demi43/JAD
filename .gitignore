@@ -3,4 +3,5 @@ dist/
 data/
 *.sqlite3
 config/companies.json
+config/filters.json
 .superpowers/
